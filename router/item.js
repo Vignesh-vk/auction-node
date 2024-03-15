@@ -3,6 +3,7 @@ const router = express.Router();
 const Item = require('../models/item');
 const User = require('../models/user');
 const { requireAuth } = require("../middleware/auth")
+const Bid = require('../models/bid')
 
 router.get('/', requireAuth, async (req, res) => {
     try {
@@ -83,6 +84,13 @@ router.post('/bid/:id', requireAuth, async (req, res) => {
             });
         }
 
+        if (item.seller.toString() === req.user._id.toString()) {
+            return res.json({ status: 400, msg: "The seller cannot bid on their own item" });
+        }
+    
+        if(item.winningBidder.toString() == req.user._id.toString()){
+            return res.json({ status: 400, msg: "You are the highest bidder" });
+        }
         if (item.endDate < new Date()) {
             return res.json({
                 status: 400,
@@ -106,6 +114,14 @@ router.post('/bid/:id', requireAuth, async (req, res) => {
         item.highestBid = bidAmount;
         item.winningBidder = req.user._id;
         await item.save();
+
+        const newBid = new Bid({
+            itemId: itemId,
+            userId: req.user._id,
+            bidAmount: bidAmount,
+            bidPlacedAt: new Date()
+        });
+        await newBid.save();
 
         return res.json({
             status: 200,
